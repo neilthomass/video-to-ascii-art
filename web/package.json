@@ -1,0 +1,12 @@
+{
+  "name": "video-to-ascii-web",
+  "version": "1.0.0",
+  "description": "Web interface for Video to ASCII converter",
+  "scripts": {
+    "start": "serve public",
+    "dev": "serve public"
+  },
+  "dependencies": {
+    "serve": "^14.2.0"
+  }
+}

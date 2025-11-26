@@ -14,3 +14,4 @@ output/*.mp4
 *.mp4
 temp_frames/
 temp_ascii_frames/
+node_modules
