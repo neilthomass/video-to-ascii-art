@@ -351,22 +351,29 @@ class VideoToAsciiConverter {
 
                 // Set up audio encoder if we have audio
                 let audioEncoder = null;
+                let audioEncoderError = null;
                 if (audioBuffer && typeof AudioEncoder !== 'undefined') {
-                    audioEncoder = new AudioEncoder({
-                        output: (chunk, meta) => {
-                            muxer.addAudioChunk(chunk, meta);
-                        },
-                        error: (e) => {
-                            console.error('AudioEncoder error:', e);
-                        }
-                    });
+                    try {
+                        audioEncoder = new AudioEncoder({
+                            output: (chunk, meta) => {
+                                muxer.addAudioChunk(chunk, meta);
+                            },
+                            error: (e) => {
+                                console.error('AudioEncoder error:', e);
+                                audioEncoderError = e;
+                            }
+                        });
 
-                    audioEncoder.configure({
-                        codec: 'mp4a.40.2',
-                        numberOfChannels: audioBuffer.numberOfChannels,
-                        sampleRate: audioBuffer.sampleRate,
-                        bitrate: 320000
-                    });
+                        audioEncoder.configure({
+                            codec: 'mp4a.40.2',
+                            numberOfChannels: audioBuffer.numberOfChannels,
+                            sampleRate: audioBuffer.sampleRate,
+                            bitrate: 320000
+                        });
+                    } catch (e) {
+                        console.error('Failed to create audio encoder:', e);
+                        audioEncoder = null;
+                    }
                 }
 
                 const frameDuration = 1_000_000 / fps; // microseconds
@@ -406,44 +413,57 @@ class VideoToAsciiConverter {
                 }
 
                 // Encode audio if available
-                if (audioEncoder && audioBuffer) {
-                    const numberOfChannels = audioBuffer.numberOfChannels;
-                    const sampleRate = audioBuffer.sampleRate;
-                    const totalSamples = audioBuffer.length;
+                if (audioEncoder && audioBuffer && !audioEncoderError) {
+                    try {
+                        const numberOfChannels = audioBuffer.numberOfChannels;
+                        const sampleRate = audioBuffer.sampleRate;
+                        const totalSamples = audioBuffer.length;
 
-                    // Encode in chunks to avoid memory issues and improve quality
-                    const chunkSize = sampleRate; // 1 second chunks
-                    let timestamp = 0;
+                        // Encode in chunks to avoid memory issues and improve quality
+                        const chunkSize = sampleRate; // 1 second chunks
+                        let timestamp = 0;
 
-                    for (let offset = 0; offset < totalSamples; offset += chunkSize) {
-                        const remainingSamples = Math.min(chunkSize, totalSamples - offset);
-
-                        // Create planar data (separate channel arrays)
-                        const planarData = new Float32Array(remainingSamples * numberOfChannels);
-                        for (let ch = 0; ch < numberOfChannels; ch++) {
-                            const channelData = audioBuffer.getChannelData(ch);
-                            for (let i = 0; i < remainingSamples; i++) {
-                                planarData[ch * remainingSamples + i] = channelData[offset + i];
+                        for (let offset = 0; offset < totalSamples; offset += chunkSize) {
+                            // Check if encoder is still valid
+                            if (audioEncoderError || audioEncoder.state === 'closed') {
+                                console.warn('Audio encoder closed, skipping remaining audio');
+                                break;
                             }
+
+                            const remainingSamples = Math.min(chunkSize, totalSamples - offset);
+
+                            // Create planar data (separate channel arrays)
+                            const planarData = new Float32Array(remainingSamples * numberOfChannels);
+                            for (let ch = 0; ch < numberOfChannels; ch++) {
+                                const channelData = audioBuffer.getChannelData(ch);
+                                for (let i = 0; i < remainingSamples; i++) {
+                                    planarData[ch * remainingSamples + i] = channelData[offset + i];
+                                }
+                            }
+
+                            const audioData = new AudioData({
+                                format: 'f32-planar',
+                                sampleRate: sampleRate,
+                                numberOfFrames: remainingSamples,
+                                numberOfChannels: numberOfChannels,
+                                timestamp: timestamp,
+                                data: planarData
+                            });
+
+                            audioEncoder.encode(audioData);
+                            audioData.close();
+
+                            timestamp += (remainingSamples / sampleRate) * 1_000_000; // microseconds
                         }
 
-                        const audioData = new AudioData({
-                            format: 'f32-planar',
-                            sampleRate: sampleRate,
-                            numberOfFrames: remainingSamples,
-                            numberOfChannels: numberOfChannels,
-                            timestamp: timestamp,
-                            data: planarData
-                        });
-
-                        audioEncoder.encode(audioData);
-                        audioData.close();
-
-                        timestamp += (remainingSamples / sampleRate) * 1_000_000; // microseconds
+                        if (audioEncoder.state !== 'closed') {
+                            await audioEncoder.flush();
+                            audioEncoder.close();
+                        }
+                    } catch (e) {
+                        console.error('Audio encoding failed:', e);
+                        // Continue without audio
                     }
-
-                    await audioEncoder.flush();
-                    audioEncoder.close();
                 }
 
                 await videoEncoder.flush();
