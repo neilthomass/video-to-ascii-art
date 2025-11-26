@@ -359,10 +359,10 @@ class VideoToAsciiConverter {
                 });
 
                 videoEncoder.configure({
-                    codec: 'avc1.640033',
+                    codec: 'avc1.640034',
                     width: width,
                     height: height,
-                    bitrate: 8_000_000,
+                    bitrate: 10_000_000,
                     framerate: fps
                 });
 
