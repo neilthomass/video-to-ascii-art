@@ -170,6 +170,18 @@ button[type="submit"]:disabled {
     margin-bottom: 8px;
 }
 
+.checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
 .hidden {
     display: none;
 }

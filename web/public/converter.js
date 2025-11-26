@@ -233,14 +233,14 @@ class VideoToAsciiConverter {
     }
 
     async convert(videoFile, options = {}) {
-        const { fps = 15, asciiWidth = 120 } = options;
+        const { fps = 15, asciiWidth = 120, includeAudio = true } = options;
 
         const video = document.createElement('video');
         video.muted = true;
         video.playsInline = true;
 
-        // Extract audio in parallel
-        const audioPromise = this.extractAudio(videoFile);
+        // Extract audio in parallel if requested
+        const audioPromise = includeAudio ? this.extractAudio(videoFile) : Promise.resolve(null);
 
         return new Promise((resolve, reject) => {
             video.onloadedmetadata = async () => {

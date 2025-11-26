@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const width = parseInt(widthInput.value) || 120;
         const chars = charsInput.value || 'F$V* ';
         const noiseLevel = (parseInt(noiseLevelInput.value) || 15) / 100;
+        const includeAudio = document.getElementById('includeAudio').checked;
 
         if (fps < 1 || fps > 30) {
             alert('FPS must be between 1 and 30');
@@ -78,7 +79,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const result = await converter.convert(videoInput.files[0], {
                 fps,
-                asciiWidth: width
+                asciiWidth: width,
+                includeAudio
             });
 
             currentResult = result;
