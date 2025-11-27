@@ -10,16 +10,100 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadGifBtn = document.getElementById('downloadGif');
     const errorDiv = document.getElementById('error');
     const errorMessage = document.getElementById('errorMessage');
+    const previewDiv = document.getElementById('preview');
+    const previewCanvas = document.getElementById('previewCanvas');
+    const thresholdInput = document.getElementById('threshold');
+    const thresholdValue = document.getElementById('thresholdValue');
+    const contrastInput = document.getElementById('contrast');
+    const contrastValue = document.getElementById('contrastValue');
+    const exposureInput = document.getElementById('exposure');
+    const exposureValue = document.getElementById('exposureValue');
+    const videoInput = document.getElementById('video');
+    const widthInput = document.getElementById('width');
+    const charsInput = document.getElementById('chars');
 
     let currentResult = null;
+    let previewVideo = null;
+    let previewSourceCanvas = null;
+
+    // Preview functionality
+    videoInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) {
+            previewDiv.classList.add('hidden');
+            return;
+        }
+
+        // Create video element to extract first frame
+        previewVideo = document.createElement('video');
+        previewVideo.muted = true;
+        previewVideo.playsInline = true;
+
+        previewVideo.onloadedmetadata = () => {
+            // Seek to random frame in middle 50% of video
+            const duration = previewVideo.duration;
+            const start = duration * 0.25;
+            const end = duration * 0.75;
+            previewVideo.currentTime = start + Math.random() * (end - start);
+        };
+
+        previewVideo.onseeked = () => {
+            // Capture frame after seek
+            previewSourceCanvas = document.createElement('canvas');
+            previewSourceCanvas.width = previewVideo.videoWidth;
+            previewSourceCanvas.height = previewVideo.videoHeight;
+            const ctx = previewSourceCanvas.getContext('2d');
+            ctx.drawImage(previewVideo, 0, 0);
+
+            previewDiv.classList.remove('hidden');
+            updatePreview();
+        };
+
+        previewVideo.src = URL.createObjectURL(file);
+    });
+
+    function updatePreview() {
+        if (!previewSourceCanvas) return;
+
+        const width = parseInt(widthInput.value) || 120;
+        const chars = charsInput.value || 'F$V* ';
+        const threshold = parseInt(thresholdInput.value) || 240;
+        const contrast = parseInt(contrastInput.value) || 100;
+        const exposure = parseInt(exposureInput.value) || 0;
+
+        const converter = new VideoToAsciiConverter({
+            asciiChars: chars,
+            noiseLevel: 0,
+            whiteThreshold: threshold,
+            contrast: contrast,
+            exposure: exposure
+        });
+
+        converter.frameToAscii(previewSourceCanvas, previewCanvas, width);
+    }
+
+    thresholdInput.addEventListener('input', () => {
+        thresholdValue.textContent = thresholdInput.value;
+        updatePreview();
+    });
+
+    contrastInput.addEventListener('input', () => {
+        contrastValue.textContent = contrastInput.value;
+        updatePreview();
+    });
+
+    exposureInput.addEventListener('input', () => {
+        exposureValue.textContent = exposureInput.value;
+        updatePreview();
+    });
+
+    widthInput.addEventListener('input', updatePreview);
+    charsInput.addEventListener('input', updatePreview);
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const videoInput = document.getElementById('video');
         const fpsInput = document.getElementById('fps');
-        const widthInput = document.getElementById('width');
-        const charsInput = document.getElementById('chars');
         const noiseLevelInput = document.getElementById('noiseLevel');
 
         if (!videoInput.files[0]) {
@@ -31,15 +115,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const width = parseInt(widthInput.value) || 120;
         const chars = charsInput.value || 'F$V* ';
         const noiseLevel = (parseInt(noiseLevelInput.value) || 15) / 100;
-        const includeAudio = document.getElementById('includeAudio').checked;
+        const threshold = parseInt(thresholdInput.value) || 240;
+        const contrast = parseInt(contrastInput.value) || 100;
+        const exposure = parseInt(exposureInput.value) || 0;
 
         if (fps < 1 || fps > 30) {
             alert('FPS must be between 1 and 30');
             return;
         }
 
-        if (width < 40 || width > 240) {
-            alert('Width must be between 40 and 240');
+        if (width < 40 || width > 720) {
+            alert('Width must be between 40 and 720');
             return;
         }
 
@@ -54,6 +140,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const converter = new VideoToAsciiConverter({
                 asciiChars: chars,
                 noiseLevel: noiseLevel,
+                whiteThreshold: threshold,
+                contrast: contrast,
+                exposure: exposure,
                 onProgress: (progress) => {
                     progressBar.style.width = `${progress.percent}%`;
 
@@ -79,8 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const result = await converter.convert(videoInput.files[0], {
                 fps,
-                asciiWidth: width,
-                includeAudio
+                asciiWidth: width
             });
 
             currentResult = result;

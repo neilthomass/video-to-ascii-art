@@ -23,6 +23,24 @@
                 <span class="file-info">Supported: MP4, WebM, MOV, and other browser-supported formats</span>
             </div>
 
+            <div id="preview" class="preview hidden">
+                <h3>Preview</h3>
+                <canvas id="previewCanvas"></canvas>
+                <div class="form-group">
+                    <label for="contrast">Contrast: <span id="contrastValue">100</span>%</label>
+                    <input type="range" id="contrast" name="contrast" value="100" min="50" max="200">
+                </div>
+                <div class="form-group">
+                    <label for="exposure">Exposure: <span id="exposureValue">0</span></label>
+                    <input type="range" id="exposure" name="exposure" value="0" min="-100" max="100">
+                </div>
+                <div class="form-group">
+                    <label for="threshold">White Threshold: <span id="thresholdValue">240</span></label>
+                    <input type="range" id="threshold" name="threshold" value="240" min="0" max="255">
+                    <span class="hint">Pixels brighter than this become empty white space</span>
+                </div>
+            </div>
+
             <div class="form-row">
                 <div class="form-group">
                     <label for="fps">FPS (Frames Per Second)</label>
@@ -32,7 +50,7 @@
 
                 <div class="form-group">
                     <label for="width">ASCII Width (characters)</label>
-                    <input type="number" id="width" name="width" value="120" min="40" max="240">
+                    <input type="number" id="width" name="width" value="120" min="40" max="720">
                     <span class="hint">More characters = more detail</span>
                 </div>
             </div>
@@ -49,13 +67,6 @@
                     <input type="number" id="noiseLevel" name="noiseLevel" value="15" min="0" max="50">
                     <span class="hint">Random variation for animated look</span>
                 </div>
-            </div>
-
-            <div class="form-group checkbox-group">
-                <label>
-                    <input type="checkbox" id="includeAudio" name="includeAudio" checked>
-                    Include audio from original video
-                </label>
             </div>
 
             <button type="submit" id="submitBtn">Convert to ASCII</button>

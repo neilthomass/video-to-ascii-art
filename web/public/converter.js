@@ -8,9 +8,13 @@ class VideoToAsciiConverter {
         this.asciiChars = options.asciiChars || 'F$V* ';
         this.charWidth = 10;
         this.charHeight = 18;
-        this.whiteThreshold = 240;
+        this.whiteThreshold = options.whiteThreshold !== undefined ? options.whiteThreshold : 240;
         this.noiseLevel = options.noiseLevel || 0.15;
+        this.contrast = options.contrast !== undefined ? options.contrast : 100;
+        this.exposure = options.exposure !== undefined ? options.exposure : 0;
         this.onProgress = options.onProgress || (() => {});
+        this.maxWidth = 1920;
+        this.maxHeight = 1080;
     }
 
     getBrightness(r, g, b) {
@@ -38,6 +42,25 @@ class VideoToAsciiConverter {
             char: this.asciiChars[charIndex],
             color: { r, g, b }
         };
+    }
+
+    applyContrastExposure(imageData) {
+        const data = imageData.data;
+        const contrast = this.contrast / 100;
+        const exposure = this.exposure;
+
+        for (let i = 0; i < data.length; i += 4) {
+            for (let c = 0; c < 3; c++) {
+                let value = data[i + c];
+                // Apply exposure (brightness shift)
+                value += exposure;
+                // Apply contrast (scale around midpoint 128)
+                value = (value - 128) * contrast + 128;
+                data[i + c] = Math.min(255, Math.max(0, value));
+            }
+        }
+
+        return imageData;
     }
 
     maximizeContrast(imageData) {
@@ -76,8 +99,22 @@ class VideoToAsciiConverter {
         const charAspect = this.charHeight / this.charWidth;
         const asciiHeight = Math.floor(asciiWidth * aspectRatio / charAspect);
 
-        const imgWidth = asciiWidth * this.charWidth;
-        const imgHeight = asciiHeight * this.charHeight;
+        let imgWidth = asciiWidth * this.charWidth;
+        let imgHeight = asciiHeight * this.charHeight;
+
+        // Cap output at 1080p while maintaining aspect ratio
+        if (imgWidth > this.maxWidth || imgHeight > this.maxHeight) {
+            const scaleW = this.maxWidth / imgWidth;
+            const scaleH = this.maxHeight / imgHeight;
+            const scale = Math.min(scaleW, scaleH);
+            imgWidth = Math.floor(imgWidth * scale);
+            imgHeight = Math.floor(imgHeight * scale);
+        }
+
+        // Ensure dimensions are even (required for video encoding)
+        imgWidth = imgWidth - (imgWidth % 2);
+        imgHeight = imgHeight - (imgHeight % 2);
+
         outputCanvas.width = imgWidth;
         outputCanvas.height = imgHeight;
 
@@ -89,14 +126,24 @@ class VideoToAsciiConverter {
         tempCtx.drawImage(sourceCanvas, 0, 0, asciiWidth, asciiHeight);
         let imageData = tempCtx.getImageData(0, 0, asciiWidth, asciiHeight);
 
+        // Apply contrast and exposure adjustments first
+        imageData = this.applyContrastExposure(imageData);
         imageData = this.maximizeContrast(imageData);
         const pixels = imageData.data;
 
-        outputCtx.fillStyle = '#ffffff';
-        outputCtx.fillRect(0, 0, imgWidth, imgHeight);
+        // Render ASCII at full resolution first
+        const fullWidth = asciiWidth * this.charWidth;
+        const fullHeight = asciiHeight * this.charHeight;
+        const asciiCanvas = document.createElement('canvas');
+        asciiCanvas.width = fullWidth;
+        asciiCanvas.height = fullHeight;
+        const asciiCtx = asciiCanvas.getContext('2d');
 
-        outputCtx.font = '14px monospace';
-        outputCtx.textBaseline = 'top';
+        asciiCtx.fillStyle = '#ffffff';
+        asciiCtx.fillRect(0, 0, fullWidth, fullHeight);
+
+        asciiCtx.font = '14px monospace';
+        asciiCtx.textBaseline = 'top';
 
         for (let y = 0; y < asciiHeight; y++) {
             for (let x = 0; x < asciiWidth; x++) {
@@ -111,10 +158,13 @@ class VideoToAsciiConverter {
 
                 const posX = x * this.charWidth;
                 const posY = y * this.charHeight;
-                outputCtx.fillStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
-                outputCtx.fillText(char, posX, posY);
+                asciiCtx.fillStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
+                asciiCtx.fillText(char, posX, posY);
             }
         }
+
+        // Scale down to output canvas (capped at 1080p)
+        outputCtx.drawImage(asciiCanvas, 0, 0, fullWidth, fullHeight, 0, 0, imgWidth, imgHeight);
 
         return { width: imgWidth, height: imgHeight };
     }
@@ -305,6 +355,22 @@ class VideoToAsciiConverter {
         return await this.encodeWithMediaRecorder(frames, fps, width, height, canvas, ctx);
     }
 
+    getAvcCodec(width, height) {
+        // Select appropriate AVC level based on resolution
+        // OpenH264 in browsers has limitations on what it can encode
+        const pixels = width * height;
+
+        if (pixels <= 921600) {         // Up to 1280x720
+            return 'avc1.64001F';        // Level 3.1
+        } else if (pixels <= 2073600) { // Up to 1920x1080
+            return 'avc1.640028';        // Level 4.0
+        } else if (pixels <= 8294400) { // Up to 3840x2160
+            return 'avc1.640033';        // Level 5.1
+        } else {
+            return 'avc1.64003E';        // Level 6.2 for 8K+
+        }
+    }
+
     async encodeWithVideoEncoder(frames, fps, width, height, canvas, ctx, audioBuffer = null) {
         return new Promise(async (resolve, reject) => {
             try {
@@ -347,6 +413,21 @@ class VideoToAsciiConverter {
                 const muxer = new Mp4Muxer.Muxer(muxerConfig);
 
                 let encoderClosed = false;
+                const avcCodec = this.getAvcCodec(width, height);
+
+                // Check if the encoder supports this configuration
+                const encoderConfig = {
+                    codec: avcCodec,
+                    width: width,
+                    height: height,
+                    bitrate: 15_000_000,
+                    framerate: fps
+                };
+
+                const support = await VideoEncoder.isConfigSupported(encoderConfig);
+                if (!support.supported) {
+                    throw new Error(`Video resolution ${width}x${height} is too large for browser encoding. Try reducing ASCII width.`);
+                }
 
                 const videoEncoder = new VideoEncoder({
                     output: (chunk, meta) => {
@@ -358,13 +439,7 @@ class VideoToAsciiConverter {
                     }
                 });
 
-                videoEncoder.configure({
-                    codec: 'avc1.64003E',
-                    width: width,
-                    height: height,
-                    bitrate: 15_000_000,
-                    framerate: fps
-                });
+                videoEncoder.configure(encoderConfig);
 
                 // Set up audio encoder if we can encode audio
                 let audioEncoder = null;
