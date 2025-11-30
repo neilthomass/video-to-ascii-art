@@ -37,8 +37,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const fullscreenBtn = document.getElementById('fullscreenBtn');
     const rerenderBtn = document.getElementById('rerenderBtn');
     const charsInput = document.getElementById('chars');
+    const charsGroup = document.getElementById('charsGroup');
     const savedOutputsSection = document.getElementById('savedOutputsSection');
     const savedOutputsSelect = document.getElementById('savedOutputs');
+    const modeAsciiBtn = document.getElementById('modeAscii');
+    const modeDotsBtn = document.getElementById('modeDots');
 
     let videoData = null;
     let renderedFrames = null;
@@ -46,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isPlaying = false;
     let animationId = null;
     let lastFrameTime = 0;
+    let renderMode = 'ascii'; // 'ascii' or 'dots'
 
     // Populate saved outputs dropdown
     function populateSavedOutputs() {
@@ -341,9 +345,21 @@ document.addEventListener('DOMContentLoaded', () => {
         return { char: ' ', color: "rgb(255,255,255)" };
     }
 
+    function getDotChar(brightness) {
+        // Use unicode circles of varying sizes based on brightness
+        // Darker = larger dot, lighter = smaller dot or space
+        if (brightness >= 240) return ' ';
+        if (brightness >= 200) return '·';  // small dot
+        if (brightness >= 160) return '•';  // bullet
+        if (brightness >= 120) return '●';  // black circle
+        if (brightness >= 80) return '◉';   // fisheye
+        return '⬤';  // large circle
+    }
+
     function prerenderFrames() {
         renderedFrames = [];
         const asciiChars = charsInput.value || 'F$V* ';
+        const useDots = renderMode === 'dots';
 
         for (let f = 0; f < videoData.frames.length; f++) {
             const frame = videoData.frames[f];
@@ -358,14 +374,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (let x = 0; x < row.length; x++) {
                     const { char, color } = parsePixel(row[x], asciiChars);
 
+                    // In dots mode, convert to dot character based on brightness
+                    let displayChar = char;
+                    if (useDots) {
+                        const pixel = row[x];
+                        let brightness = 255;
+                        if (pixel === '' || pixel === null) {
+                            brightness = 255;
+                        } else if (typeof pixel === 'number') {
+                            brightness = pixel;
+                        } else if (Array.isArray(pixel) && pixel.length === 3) {
+                            brightness = getBrightness(pixel[0], pixel[1], pixel[2]);
+                        }
+                        displayChar = getDotChar(brightness);
+                    }
+
                     if (color === currentColor) {
-                        currentChars += escapeHtml(char);
+                        currentChars += escapeHtml(displayChar);
                     } else {
                         if (currentChars.length > 0) {
                             lineHtml += `<span style="color:${currentColor}">${currentChars}</span>`;
                         }
                         currentColor = color;
-                        currentChars = escapeHtml(char);
+                        currentChars = escapeHtml(displayChar);
                     }
                 }
 
@@ -524,6 +555,31 @@ document.addEventListener('DOMContentLoaded', () => {
         showFrame(currentFrame);
         if (wasPlaying) play();
     });
+
+    // Mode toggle handlers
+    function setRenderMode(mode) {
+        renderMode = mode;
+        if (mode === 'ascii') {
+            modeAsciiBtn.classList.add('active');
+            modeDotsBtn.classList.remove('active');
+            charsGroup.classList.remove('hidden');
+        } else {
+            modeAsciiBtn.classList.remove('active');
+            modeDotsBtn.classList.add('active');
+            charsGroup.classList.add('hidden');
+        }
+        // Re-render if video is loaded
+        if (videoData) {
+            const wasPlaying = isPlaying;
+            if (isPlaying) pause();
+            prerenderFrames();
+            showFrame(currentFrame);
+            if (wasPlaying) play();
+        }
+    }
+
+    modeAsciiBtn.addEventListener('click', () => setRenderMode('ascii'));
+    modeDotsBtn.addEventListener('click', () => setRenderMode('dots'));
 
     window.addEventListener('resize', () => {
         if (videoData) {

@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seurat</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .about-section {
+            margin-bottom: 48px;
+        }
+        .about-section h2 {
+            font-size: 1.8rem;
+            font-weight: 300;
+            margin-bottom: 16px;
+            letter-spacing: 0.02em;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 8px;
+        }
+        .about-section h3 {
+            font-size: 1.3rem;
+            font-weight: 400;
+            margin: 24px 0 12px;
+            color: #4a4a4a;
+        }
+        .about-section p {
+            line-height: 1.7;
+            margin-bottom: 16px;
+            color: #4a4a4a;
+        }
+        .about-section ul {
+            margin: 12px 0 16px 24px;
+            line-height: 1.7;
+            color: #4a4a4a;
+        }
+        .about-section li {
+            margin-bottom: 8px;
+        }
+        .code-block {
+            position: relative;
+            background: #1a1a1a;
+            color: #f5f0e8;
+            padding: 20px;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            overflow-x: auto;
+            margin: 16px 0;
+            border: 1px solid #333;
+        }
+        .code-block code {
+            white-space: pre;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 6px 12px;
+            background: #333;
+            color: #f5f0e8;
+            border: 1px solid #555;
+            cursor: pointer;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+        }
+        .copy-btn:hover {
+            background: #444;
+            border-color: #666;
+        }
+        .copy-btn.copied {
+            background: #2a5a2a;
+            border-color: #3a7a3a;
+        }
+        .inline-code {
+            background: #f0ebe3;
+            padding: 2px 6px;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+            border: 1px solid #ddd;
+        }
+        .format-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+        .format-table th,
+        .format-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .format-table th {
+            background: #f9f6f0;
+            font-weight: 400;
+            text-transform: lowercase;
+            letter-spacing: 0.05em;
+        }
+        .format-table td {
+            color: #4a4a4a;
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav-menu">
+        <div class="nav-inner">
+            <a href="index.html" class="nav-logo">Seurat</a>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">converter</a>
+                <a href="play.html" class="nav-link">player</a>
+                <a href="about.html" class="nav-link active">about</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1>About</h1>
+        <p class="subtitle">how seurat converts videos to ascii art</p>
+
+        <div class="about-section">
+            <h2>How It Works</h2>
+            <p>
+                Seurat is a browser-based video-to-ASCII converter that transforms video files into animated ASCII art.
+                The entire conversion process happens client-side in your browser - no server uploads required.
+            </p>
+
+            <h3>Conversion Process</h3>
+            <ul>
+                <li><strong>Frame Extraction:</strong> The video is loaded into an HTML5 video element and frames are extracted at the target FPS using canvas.</li>
+                <li><strong>Downsampling:</strong> Each frame is scaled down to the target ASCII width while maintaining aspect ratio. Character aspect (height vs width) is accounted for.</li>
+                <li><strong>Brightness Analysis:</strong> For each pixel cell, the average brightness is calculated using the luminance formula: <span class="inline-code">0.299R + 0.587G + 0.114B</span></li>
+                <li><strong>Character Mapping:</strong> Brightness values are mapped to ASCII characters from dark to light (e.g., "F$V* "). Pixels above the white threshold become empty spaces.</li>
+                <li><strong>Contrast Enhancement:</strong> Auto-contrast stretches the luminance range for better definition. Manual contrast and exposure controls allow fine-tuning.</li>
+            </ul>
+
+            <h3>Output Formats</h3>
+            <ul>
+                <li><strong>MP4:</strong> Uses the WebCodecs API (VideoEncoder) with H.264 encoding. ASCII characters are rendered to canvas and encoded as video frames. Audio is preserved when available.</li>
+                <li><strong>Text (JSONL.GZ):</strong> Exports frame data as gzip-compressed JSON Lines format for playback in the web player or custom applications.</li>
+            </ul>
+        </div>
+
+        <div class="about-section">
+            <h2>File Format</h2>
+            <p>
+                The text export format is JSONL (JSON Lines) compressed with gzip. Each line is a separate JSON object.
+            </p>
+
+            <h3>Metadata (First Line)</h3>
+            <p>The first line contains video metadata:</p>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                <code>{
+  "fps": 10,
+  "width": 300,
+  "height": 167,
+  "frameCount": 150,
+  "duration": 15.0,
+  "rle": true
+}</code>
+            </div>
+
+            <table class="format-table">
+                <tr>
+                    <th>field</th>
+                    <th>type</th>
+                    <th>description</th>
+                </tr>
+                <tr>
+                    <td><span class="inline-code">fps</span></td>
+                    <td>number</td>
+                    <td>Frames per second for playback</td>
+                </tr>
+                <tr>
+                    <td><span class="inline-code">width</span></td>
+                    <td>number</td>
+                    <td>Width in characters</td>
+                </tr>
+                <tr>
+                    <td><span class="inline-code">height</span></td>
+                    <td>number</td>
+                    <td>Height in rows</td>
+                </tr>
+                <tr>
+                    <td><span class="inline-code">frameCount</span></td>
+                    <td>number</td>
+                    <td>Total number of frames</td>
+                </tr>
+                <tr>
+                    <td><span class="inline-code">duration</span></td>
+                    <td>number</td>
+                    <td>Duration in seconds</td>
+                </tr>
+                <tr>
+                    <td><span class="inline-code">rle</span></td>
+                    <td>boolean</td>
+                    <td>Whether frames use run-length encoding</td>
+                </tr>
+            </table>
+
+            <h3>Frame Data (Subsequent Lines)</h3>
+            <p>Each subsequent line is a frame represented as a flattened array of pixels (row-major order). Pixel values can be:</p>
+            <ul>
+                <li><span class="inline-code">""</span> - Empty/white pixel</li>
+                <li><span class="inline-code">128</span> - Grayscale value (0-255)</li>
+                <li><span class="inline-code">[r, g, b]</span> - RGB color array</li>
+            </ul>
+
+            <h3>Run-Length Encoding</h3>
+            <p>When <span class="inline-code">rle: true</span>, consecutive identical pixels are compressed as <span class="inline-code">[count, pixel]</span>:</p>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                <code>// Original: ["", "", "", "", 128, 128, [255,0,0]]
+// RLE encoded: [[4, ""], [2, 128], [255,0,0]]</code>
+            </div>
+        </div>
+
+        <div class="about-section">
+            <h2>Playback Code</h2>
+            <p>
+                Below is a minimal JavaScript player for Seurat JSONL.GZ files. Copy this code to embed ASCII video playback in your own projects.
+            </p>
+
+            <h3>HTML Structure</h3>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                <code>&lt;pre id="ascii-player" style="
+  font-family: monospace;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: pre;
+  background: #fff;
+  padding: 8px;
+"&gt;&lt;/pre&gt;
+&lt;button id="play-btn"&gt;Play&lt;/button&gt;</code>
+            </div>
+
+            <h3>JavaScript Player</h3>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                <code>class AsciiPlayer {
+  constructor(elementId, options = {}) {
+    this.element = document.getElementById(elementId);
+    this.chars = options.chars || 'F$V* ';
+    this.frames = [];
+    this.metadata = null;
+    this.currentFrame = 0;
+    this.isPlaying = false;
+    this.animationId = null;
+  }
+
+  async load(url) {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const text = await this.decompress(blob);
+    this.parse(text);
+  }
+
+  async decompress(blob) {
+    const stream = blob.stream().pipeThrough(
+      new DecompressionStream('gzip')
+    );
+    return await new Response(stream).text();
+  }
+
+  parse(text) {
+    const lines = text.trim().split('\n');
+    this.metadata = JSON.parse(lines[0]);
+    this.frames = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      let frame = JSON.parse(lines[i]);
+      if (this.metadata.rle) {
+        frame = this.decodeRle(frame);
+      }
+      this.frames.push(this.renderFrame(frame));
+    }
+  }
+
+  decodeRle(encoded) {
+    const decoded = [];
+    for (const item of encoded) {
+      if (Array.isArray(item) && item.length === 2 &&
+          typeof item[0] === 'number' && item[0] > 1) {
+        for (let i = 0; i < item[0]; i++) {
+          decoded.push(item[1]);
+        }
+      } else {
+        decoded.push(item);
+      }
+    }
+    return decoded;
+  }
+
+  getBrightness(r, g, b) {
+    return 0.299 * r + 0.587 * g + 0.114 * b;
+  }
+
+  getChar(brightness) {
+    if (brightness >= 240) return ' ';
+    const idx = Math.floor((brightness / 240) * (this.chars.length - 1));
+    return this.chars[Math.min(idx, this.chars.length - 2)];
+  }
+
+  renderFrame(flat) {
+    const { width, height } = this.metadata;
+    const lines = [];
+
+    for (let y = 0; y < height; y++) {
+      let line = '';
+      let currentColor = null;
+      let chars = '';
+
+      for (let x = 0; x < width; x++) {
+        const pixel = flat[y * width + x];
+        let char, color;
+
+        if (pixel === '' || pixel === null) {
+          char = ' ';
+          color = 'rgb(255,255,255)';
+        } else if (typeof pixel === 'number') {
+          char = this.getChar(pixel);
+          color = `rgb(${pixel},${pixel},${pixel})`;
+        } else if (Array.isArray(pixel)) {
+          const brightness = this.getBrightness(...pixel);
+          char = this.getChar(brightness);
+          color = `rgb(${pixel.join(',')})`;
+        }
+
+        if (color === currentColor) {
+          chars += char;
+        } else {
+          if (chars) {
+            line += `&lt;span style="color:${currentColor}"&gt;${chars}&lt;/span&gt;`;
+          }
+          currentColor = color;
+          chars = char;
+        }
+      }
+      if (chars) {
+        line += `&lt;span style="color:${currentColor}"&gt;${chars}&lt;/span&gt;`;
+      }
+      lines.push(line);
+    }
+    return lines.join('\n');
+  }
+
+  show(frameIndex) {
+    this.currentFrame = frameIndex;
+    this.element.innerHTML = this.frames[frameIndex];
+  }
+
+  play() {
+    if (this.isPlaying) return;
+    this.isPlaying = true;
+    const frameDuration = 1000 / this.metadata.fps;
+    let lastTime = performance.now();
+
+    const animate = () => {
+      if (!this.isPlaying) return;
+      const now = performance.now();
+      if (now - lastTime >= frameDuration) {
+        this.currentFrame = (this.currentFrame + 1) % this.frames.length;
+        this.show(this.currentFrame);
+        lastTime = now;
+      }
+      this.animationId = requestAnimationFrame(animate);
+    };
+    animate();
+  }
+
+  pause() {
+    this.isPlaying = false;
+    if (this.animationId) {
+      cancelAnimationFrame(this.animationId);
+    }
+  }
+
+  toggle() {
+    this.isPlaying ? this.pause() : this.play();
+  }
+}
+
+// Usage
+const player = new AsciiPlayer('ascii-player');
+player.load('video.jsonl.gz').then(() => {
+  player.show(0);
+  document.getElementById('play-btn').onclick = () => player.toggle();
+});</code>
+            </div>
+
+            <h3>Minimal Inline Player</h3>
+            <p>For a quick single-file solution:</p>
+            <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">copy</button>
+                <code>&lt;script&gt;
+(async function() {
+  const pre = document.getElementById('ascii-player');
+  const res = await fetch('video.jsonl.gz');
+  const stream = (await res.blob()).stream()
+    .pipeThrough(new DecompressionStream('gzip'));
+  const text = await new Response(stream).text();
+  const lines = text.trim().split('\n');
+  const meta = JSON.parse(lines[0]);
+  const frames = lines.slice(1).map(l => JSON.parse(l));
+
+  let i = 0;
+  setInterval(() => {
+    const frame = frames[i++ % frames.length];
+    pre.textContent = frame.map(row =>
+      row.map(p => p === '' ? ' ' : '#').join('')
+    ).join('\n');
+  }, 1000 / meta.fps);
+})();
+&lt;/script&gt;</code>
+            </div>
+        </div>
+
+        <div class="about-section">
+            <h2>Name</h2>
+            <p>
+                Seurat is named after <a href="https://en.wikipedia.org/wiki/Georges_Seurat" target="_blank" style="color: #666;">Georges Seurat</a>,
+                the French post-Impressionist painter who pioneered pointillism - a technique of painting with small, distinct dots of color.
+                Just as Seurat built images from individual points, this tool builds video from individual ASCII characters.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function copyCode(btn) {
+            const codeBlock = btn.parentElement.querySelector('code');
+            const text = codeBlock.textContent;
+
+            navigator.clipboard.writeText(text).then(() => {
+                btn.textContent = 'copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = 'copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
+    </script>
+</body>
+</html>
+</code>

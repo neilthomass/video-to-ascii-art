@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASCII Video Player</title>
+    <title>Seurat</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
@@ -12,10 +13,11 @@
 <body>
     <nav class="nav-menu">
         <div class="nav-inner">
-            <a href="index.html" class="nav-logo">Video to ASCII</a>
+            <a href="index.html" class="nav-logo">Seurat</a>
             <div class="nav-links">
                 <a href="index.html" class="nav-link">converter</a>
                 <a href="play.html" class="nav-link active">player</a>
+                <a href="about.html" class="nav-link">about</a>
             </div>
         </div>
     </nav>
@@ -38,6 +40,14 @@
         </div>
 
         <div class="form-group">
+            <label>Render Mode</label>
+            <div class="render-mode-toggle">
+                <button type="button" id="modeAscii" class="render-mode-btn active">ASCII</button>
+                <button type="button" id="modeDots" class="render-mode-btn">Dots</button>
+            </div>
+        </div>
+
+        <div id="charsGroup" class="form-group">
             <label for="chars">ASCII Characters</label>
             <input type="text" id="chars" name="chars" value="F$V* ">
             <span class="file-info">Dark to light (last char for bright areas). Change and click "Re-render" to update.</span>
